@@ -54,6 +54,7 @@ SAVE_PATH = "C:/Users/Xiaomi/Pictures/test"
 BATCH_SIZE = 3
 sess = tf.Session()
 sess.run(tf.global_variables_initializer())
+counter = 0
 for epoch_num in range(100):
     print("START EPOCH:", epoch_num)
     for index in range(0, len(images), BATCH_SIZE):
@@ -71,6 +72,8 @@ for epoch_num in range(100):
         d_loss, _ = sess.run([discriminator_loss, discriminator_train_step], feed_dict={img_placeholder: batch, noise_placeholder: noise_batch, result_placeholder: result_batch, training_placeholder: True})
         print("Discriminator Loss:", d_loss)
 
-        save_img = (generated_image[0] * 127.5 + 127.5).astype(np.uint8)
-        save_img = cv2.cvtColor(save_img, cv2.COLOR_RGB2BGR)
-        cv2.imwrite(os.path.join(SAVE_PATH, "example" + str(index % 30) + ".jpg"), save_img)
+        counter += 1
+        if counter % 100 == 0:
+            save_img = (generated_image[0] * 127.5 + 127.5).astype(np.uint8)
+            save_img = cv2.cvtColor(save_img, cv2.COLOR_RGB2BGR)
+            cv2.imwrite(os.path.join(SAVE_PATH, "example" + str(counter % 1000) + ".jpg"), save_img)
