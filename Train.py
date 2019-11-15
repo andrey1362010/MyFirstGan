@@ -19,15 +19,13 @@ for user_directory_name in os.listdir(IMAGES_PATH):
 
 
 print("Placeholders")
-noise_placeholder = tf.placeholder(dtype=tf.float32, shape=[None, 64, 64, 1], name="noise")
-img_placeholder = tf.placeholder(dtype=tf.float32, shape=[None, 64, 64, 3], name="img")
-result_placeholder = tf.placeholder(dtype=tf.float32, shape=[None, 1], name="result")
+noise_placeholder = tf.placeholder(dtype=tf.float32, shape=[None, 64, 64, 1], name="noise_placeholder")
+result_placeholder = tf.placeholder(dtype=tf.float32, shape=[None, 1], name="result_placeholder")
 training_placeholder = tf.placeholder(dtype=tf.bool)
 
 print("Network")
-img_discriminator_op = discriminator(img_placeholder, training_placeholder, name="discriminator", reuse=False)
 generator_op = generator(noise_placeholder, training_placeholder, name="generator")
-generator_discriminator_op = discriminator(generator_op, training_placeholder, name="discriminator", reuse=True)
+generator_discriminator_op = discriminator(generator_op, training_placeholder, name="discriminator", reuse=False)
 
 
 print("Generator variables")
@@ -40,7 +38,7 @@ update_ops_discriminator = tf.get_collection(tf.GraphKeys.UPDATE_OPS, scope="dis
 
 print("Loss [1 - real, 0 - fake]")
 generator_loss = tf.reduce_mean(tf.keras.losses.MSE(1., generator_discriminator_op))
-discriminator_loss = tf.reduce_mean(tf.keras.losses.MSE(result_placeholder, img_discriminator_op))
+discriminator_loss = tf.reduce_mean(tf.keras.losses.MSE(result_placeholder, generator_discriminator_op))
 
 print("Training Settings")
 generator_optimizer = tf.train.AdamOptimizer()
@@ -68,12 +66,11 @@ for epoch_num in range(100):
         result_batch = [[1.] for i in range(BATCH_SIZE)]
         batch.extend(list(generated_image))
         result_batch.extend([[0.] for i in range(BATCH_SIZE)])
-        noise_batch = np.zeros((2 * BATCH_SIZE, 64, 64, 1)) # Stub
-        d_loss, _ = sess.run([discriminator_loss, discriminator_train_step], feed_dict={img_placeholder: batch, noise_placeholder: noise_batch, result_placeholder: result_batch, training_placeholder: True})
+        d_loss, _ = sess.run([discriminator_loss, discriminator_train_step], feed_dict={generator_op: batch, result_placeholder: result_batch, training_placeholder: True})
         print("Discriminator Loss:", d_loss)
 
         counter += 1
-        if counter % 100 == 0:
+        if counter % 10 == 0:
             save_img = (generated_image[0] * 127.5 + 127.5).astype(np.uint8)
             save_img = cv2.cvtColor(save_img, cv2.COLOR_RGB2BGR)
-            cv2.imwrite(os.path.join(SAVE_PATH, "example" + str(counter % 1000) + ".jpg"), save_img)
+            cv2.imwrite(os.path.join(SAVE_PATH, "example" + str(counter % 100) + ".jpg"), save_img)
