@@ -8,7 +8,7 @@ print("Load Data")
 IMAGES_PATH = "C:/data/CASIA-WebFace-Aligned"
 images = []
 for user_directory_name in os.listdir(IMAGES_PATH):
-    if len(images) > 100: break
+    if len(images) > 50000: break
     dir_path = os.path.join(IMAGES_PATH, user_directory_name)
     for img_name in os.listdir(dir_path):
         img_path = os.path.join(dir_path, img_name)
@@ -16,61 +16,47 @@ for user_directory_name in os.listdir(IMAGES_PATH):
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img = cv2.resize(img, (64, 64))
         images.append(img)
+images = np.array(images)
 
+input_real = tf.placeholder(tf.float32, (None, 64, 64, 3), name='input_real')
+input_noise = tf.placeholder(tf.float32, (None, 100), name='input_noise')
 
-print("Placeholders")
-noise_placeholder = tf.placeholder(dtype=tf.float32, shape=[None, 64, 64, 1], name="noise_placeholder")
-result_placeholder = tf.placeholder(dtype=tf.float32, shape=[None, 1], name="result_placeholder")
-training_placeholder = tf.placeholder(dtype=tf.bool)
+gen_noise = generator(input_noise)
+dis_logits_real = discriminator(input_real)
+dis_logits_fake = discriminator(gen_noise, reuse=True)
 
-print("Network")
-generator_op = generator(noise_placeholder, training_placeholder, name="generator")
-generator_discriminator_op = discriminator(generator_op, training_placeholder, name="discriminator", reuse=False)
+dis_loss_real = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=dis_logits_real, labels=tf.ones_like(dis_logits_real)))
+dis_loss_fake = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=dis_logits_fake, labels=tf.zeros_like(dis_logits_real)))
+gen_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=dis_logits_fake, labels=tf.ones_like(dis_logits_real)))
+dis_loss = dis_loss_real + dis_loss_fake
 
+# defining optimizers
+total_vars = tf.trainable_variables()
+dis_vars = [var for var in total_vars if var.name[0] == 'd']
+gen_vars = [var for var in total_vars if var.name[0] == 'g']
+dis_opt = tf.train.AdamOptimizer(learning_rate=0.0002, beta1=0.5).minimize(dis_loss, var_list=dis_vars)
+gen_opt = tf.train.AdamOptimizer(learning_rate=0.0002, beta1=0.5).minimize(gen_loss, var_list=gen_vars)
 
-print("Generator variables")
-trainable_generator_variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="generator")
-update_ops_generator = tf.get_collection(tf.GraphKeys.UPDATE_OPS, scope="generator")
+batch_size = 128
+iters = len(images)//batch_size
+epochs = 100000
+SAVE_PATH = 'C:/Users/Xiaomi/Pictures/test'
+with tf.Session() as sess:
+    sess.run(tf.global_variables_initializer())
+    for e in range(epochs):
+        for i in range(iters-1):
 
-print("Discriminator variables")
-trainable_discriminator_variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="discriminator")
-update_ops_discriminator = tf.get_collection(tf.GraphKeys.UPDATE_OPS, scope="discriminator")
+            batch_images = images[i*batch_size:(i+1)*batch_size]
+            batch_images = batch_images / 255.
+            batch_noise = np.random.uniform(-1, 1, size=(batch_size, 100))
 
-print("Loss [1 - real, 0 - fake]")
-generator_loss = tf.reduce_mean(tf.keras.losses.MSE(1., generator_discriminator_op))
-discriminator_loss = tf.reduce_mean(tf.keras.losses.MSE(result_placeholder, generator_discriminator_op))
+            discriminator_loss, _ = sess.run([dis_loss, dis_opt], feed_dict={input_real: batch_images, input_noise: batch_noise})
+            print("Discriminator Loss:", discriminator_loss)
+            generated_image, generator_loss, _ = sess.run([gen_noise, gen_loss, gen_opt], feed_dict={input_real: batch_images, input_noise: batch_noise})
+            print("Generator Loss:", generator_loss)
 
-print("Training Settings")
-generator_optimizer = tf.train.AdamOptimizer()
-discriminator_optimizer = tf.train.AdamOptimizer()
-with tf.control_dependencies(update_ops_generator):
-    generator_train_step = generator_optimizer.minimize(generator_loss, var_list=trainable_generator_variables)
-with tf.control_dependencies(update_ops_discriminator):
-    discriminator_train_step = generator_optimizer.minimize(discriminator_loss, var_list=trainable_discriminator_variables)
-
-SAVE_PATH = "C:/Users/Xiaomi/Pictures/test"
-BATCH_SIZE = 3
-sess = tf.Session()
-sess.run(tf.global_variables_initializer())
-counter = 0
-for epoch_num in range(100):
-    print("START EPOCH:", epoch_num)
-    for index in range(0, len(images), BATCH_SIZE):
-
-        noise_batch = np.random.rand(BATCH_SIZE, 64, 64, 1)
-        generated_image, g_loss, _ = sess.run([generator_op, generator_loss, generator_train_step], feed_dict={noise_placeholder: noise_batch, training_placeholder: True})
-        print("Generator Loss:", g_loss)
-
-        batch = images[index: index + BATCH_SIZE]
-        batch = [(img - 127.5) / 127.5 for img in batch]
-        result_batch = [[1.] for i in range(BATCH_SIZE)]
-        batch.extend(list(generated_image))
-        result_batch.extend([[0.] for i in range(BATCH_SIZE)])
-        d_loss, _ = sess.run([discriminator_loss, discriminator_train_step], feed_dict={generator_op: batch, result_placeholder: result_batch, training_placeholder: True})
-        print("Discriminator Loss:", d_loss)
-
-        counter += 1
-        if counter % 10 == 0:
-            save_img = (generated_image[0] * 127.5 + 127.5).astype(np.uint8)
-            save_img = cv2.cvtColor(save_img, cv2.COLOR_RGB2BGR)
-            cv2.imwrite(os.path.join(SAVE_PATH, "example" + str(counter % 100) + ".jpg"), save_img)
+            if i % 10 == 0:
+                print("Epoch {}/{}...".format(e+1, epochs), "Batch No {}/{}".format(i+1, iters))
+                save_img = (generated_image[0] * 255.).astype(np.uint8)
+                save_img = cv2.cvtColor(save_img, cv2.COLOR_RGB2BGR)
+                cv2.imwrite(os.path.join(SAVE_PATH, "example" + str(i % 100) + ".jpg"), save_img)

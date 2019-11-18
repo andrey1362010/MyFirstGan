@@ -1,75 +1,52 @@
 import tensorflow as tf
 
-def discriminator(image, is_training, name="discriminator", reuse=True):
 
-    with tf.variable_scope(name, reuse=reuse):
+def generator(noise, reuse=False, alpha=0.2, training=True):
 
-        # Layer 1
-        layer = tf.layers.conv2d(image, 32, kernel_size=4, strides=2, padding="same")
-        layer = tf.nn.leaky_relu(layer)
+    with tf.variable_scope('generator', reuse=reuse):
 
-        # Layer 2
-        layer = tf.layers.conv2d(layer, 64, kernel_size=4, strides=2, padding="same")
-        layer = tf.layers.batch_normalization(layer, training=is_training)
-        layer = tf.nn.leaky_relu(layer)
+        x = tf.layers.dense(noise, 4*4*512)
+        x = tf.reshape(x, (-1, 4, 4, 512))
+        x = tf.layers.batch_normalization(x, training=training)
+        x = tf.maximum(0., x)
 
-        # Layer 3
-        layer = tf.layers.conv2d(layer, 128, kernel_size=4, strides=2, padding="same")
-        layer = tf.layers.batch_normalization(layer, training=is_training)
-        layer = tf.nn.leaky_relu(layer)
+        x = tf.layers.conv2d_transpose(x, 256, 5, 2, padding='same')
+        x = tf.layers.batch_normalization(x, training=training)
+        x = tf.maximum(0., x)
 
-        # Layer 4
-        layer = tf.layers.conv2d(layer, 256, kernel_size=4, strides=2, padding="same")
-        layer = tf.layers.batch_normalization(layer, training=is_training)
-        layer = tf.nn.leaky_relu(layer)
+        x = tf.layers.conv2d_transpose(x, 128, 5, 2, padding='same')
+        x = tf.layers.batch_normalization(x, training=training)
+        x = tf.maximum(0., x)
 
-        # Global Max Pooling
-        result = tf.reduce_mean(layer, axis=[1, 2, 3])
-        return result
+        x = tf.layers.conv2d_transpose(x, 64, 5, 2, padding='same')
+        x = tf.layers.batch_normalization(x, training=training)
+        x = tf.maximum(0., x)
 
-def generator(noise, is_training, name="generator"):
+        logits = tf.layers.conv2d_transpose(x, 3, 5, 2, padding='same')
+        out = tf.tanh(logits)
 
-    NUM_RES_BLOCKS = 6
-    with tf.variable_scope(name):
+        return out
 
-        # Down Layer 1
-        layer = tf.layers.conv2d(noise, 32, kernel_size=7, strides=1, padding="same")
-        layer = tf.layers.batch_normalization(layer, training=is_training)
-        layer = tf.nn.relu(layer)
 
-        # Down Layer 2
-        layer = tf.layers.conv2d(layer, 64, kernel_size=3, strides=2, padding="same")
-        layer = tf.layers.batch_normalization(layer, training=is_training)
-        layer = tf.nn.relu(layer)
+def discriminator(x, reuse=False, alpha=0.2, training=True):
 
-        # Down Layer 3
-        layer = tf.layers.conv2d(layer, 128, kernel_size=3, strides=2, padding="same")
-        layer = tf.layers.batch_normalization(layer, training=is_training)
-        layer = tf.nn.relu(layer)
+    with tf.variable_scope('discriminator', reuse=reuse):
 
-        # Res Layers
-        for block_id in range(NUM_RES_BLOCKS):
-            start_layer = layer
-            layer = tf.layers.conv2d(layer, 128, kernel_size=3, strides=1, padding="same")
-            layer = tf.layers.batch_normalization(layer, training=is_training)
-            layer = tf.nn.relu(layer)
-            layer = tf.layers.conv2d(layer, 128, kernel_size=3, strides=1, padding="same")
-            layer = tf.layers.batch_normalization(layer, training=is_training)
-            layer = tf.nn.relu(start_layer + layer)
+        x = tf.layers.conv2d(x, 32, 5, 2, padding='same')
+        x = tf.maximum(alpha*x, x)
 
-        # Up Layer 3
-        layer = tf.layers.conv2d_transpose(layer, 64, kernel_size=3, strides=2, padding="same")
-        layer = tf.layers.batch_normalization(layer, training=is_training)
-        layer = tf.nn.relu(layer)
+        x = tf.layers.conv2d(x, 64, 5, 2, padding='same')
+        x = tf.layers.batch_normalization(x, training=training)
+        x = tf.maximum(alpha*x, x)
 
-        # Up Layer 2
-        layer = tf.layers.conv2d_transpose(layer, 32, kernel_size=3, strides=2, padding="same")
-        layer = tf.layers.batch_normalization(layer, training=is_training)
-        layer = tf.nn.relu(layer)
+        x = tf.layers.conv2d(x, 128, 5, 2, padding='same')
+        x = tf.layers.batch_normalization(x, training=training)
+        x = tf.maximum(alpha*x, x)
 
-        # Up Layer 1
-        layer = tf.layers.conv2d_transpose(layer, 3, kernel_size=7, strides=1, padding="same")
-        layer = tf.layers.batch_normalization(layer, training=is_training)
-        layer = tf.nn.relu(layer)
-        return tf.nn.tanh(layer)
+        x = tf.layers.conv2d(x, 256, 5, 2, padding='same')
+        x = tf.layers.batch_normalization(x, training=training)
+        x = tf.maximum(alpha*x, x)
 
+        flatten = tf.reshape(x, (-1, 4*4*256))
+        logits = tf.layers.dense(flatten, 1)
+        return logits
