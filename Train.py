@@ -4,7 +4,7 @@ import tensorflow as tf
 import numpy as np
 from Networks2 import discriminator, generator
 
-IMG_SIZE = (64, 64)
+IMG_SIZE = (32, 32)
 
 print("Load Data")
 IMAGES_A_PATH = "C:\data\CASIA-WebFace-Aligned/0000439" #MEN

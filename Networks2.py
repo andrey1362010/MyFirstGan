@@ -56,26 +56,26 @@ def generator(input, name, training=True, reuse=False):
         stage3 = inverted_residual(stage3, 32, 32, 1, training)
         stage3 = inverted_residual(stage3, 32, 32, 1, training)
 
-        stage4 = inverted_residual(stage3, 32, 64, 2, training)  # 1/16
-        stage4 = inverted_residual(stage4, 64, 64, 1, training)
-        stage4 = inverted_residual(stage4, 64, 64, 1, training)
-        stage4 = inverted_residual(stage4, 64, 64, 1, training)
-        stage4 = inverted_residual(stage4, 64, 96, 1, training)
-        stage4 = inverted_residual(stage4, 96, 96, 1, training)
-        stage4 = inverted_residual(stage4, 96, 96, 1, training)
+        #stage4 = inverted_residual(stage3, 32, 64, 2, training)  # 1/16
+        #stage4 = inverted_residual(stage4, 64, 64, 1, training)
+        #stage4 = inverted_residual(stage4, 64, 64, 1, training)
+        #stage4 = inverted_residual(stage4, 64, 64, 1, training)
+        #stage4 = inverted_residual(stage4, 64, 96, 1, training)
+        #stage4 = inverted_residual(stage4, 96, 96, 1, training)
+        #stage4 = inverted_residual(stage4, 96, 96, 1, training)
+#
+        #stage5 = inverted_residual(stage4, 64, 160, 2, training)  # 1/32
+        #stage5 = inverted_residual(stage5, 160, 160, 1, training)
+        #stage5 = inverted_residual(stage5, 160, 160, 1, training)
+        #stage5 = inverted_residual(stage5, 160, 320, 1, training)
 
-        stage5 = inverted_residual(stage4, 64, 160, 2, training)  # 1/32
-        stage5 = inverted_residual(stage5, 160, 160, 1, training)
-        stage5 = inverted_residual(stage5, 160, 160, 1, training)
-        stage5 = inverted_residual(stage5, 160, 320, 1, training)
+        #stage_5_up = residual_block(stage5, 320, 96, training)
+        #stage_5_up = tf.layers.conv2d_transpose(stage_5_up, 96, kernel_size=4, strides=2, use_bias=False, padding="same")
+#
+        #stage_4_up = residual_block(stage_5_up + stage4, 96, 32, training)
+        #stage_4_up = tf.layers.conv2d_transpose(stage_4_up, 32, kernel_size=4, strides=2, use_bias=False, padding="same")
 
-        stage_5_up = residual_block(stage5, 320, 96, training)
-        stage_5_up = tf.layers.conv2d_transpose(stage_5_up, 96, kernel_size=4, strides=2, use_bias=False, padding="same")
-
-        stage_4_up = residual_block(stage_5_up + stage4, 96, 32, training)
-        stage_4_up = tf.layers.conv2d_transpose(stage_4_up, 32, kernel_size=4, strides=2, use_bias=False, padding="same")
-
-        stage_3_up = residual_block(stage_4_up + stage3, 32, 24, training)
+        stage_3_up = residual_block(stage3, 32, 24, training) #stage_4_up + stage3
         stage_3_up = tf.layers.conv2d_transpose(stage_3_up, 24, kernel_size=4, strides=2, use_bias=False, padding="same")
 
         stage_2_up = residual_block(stage_3_up + stage2, 24, 16, training)
