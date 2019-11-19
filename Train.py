@@ -4,59 +4,103 @@ import tensorflow as tf
 import numpy as np
 from Networks import discriminator, generator
 
+IMG_SIZE = (32, 32)
+
 print("Load Data")
-IMAGES_PATH = "C:/data/CASIA-WebFace-Aligned"
-images = []
-for user_directory_name in os.listdir(IMAGES_PATH):
-    if len(images) > 50000: break
-    dir_path = os.path.join(IMAGES_PATH, user_directory_name)
-    for img_name in os.listdir(dir_path):
-        img_path = os.path.join(dir_path, img_name)
+IMAGES_A_PATH = "C:\data\CASIA-WebFace-Aligned/0000439" #MEN
+IMAGES_B_PATH = "C:\data\CASIA-WebFace-Aligned/0000204" #WOMEN
+def read_images(path):
+    images = []
+    for img_name in os.listdir(path):
+        img_path = os.path.join(path, img_name)
         img = cv2.imread(img_path)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        img = cv2.resize(img, (64, 64))
+        img = cv2.resize(img, IMG_SIZE)
         images.append(img)
-images = np.array(images)
+    return np.array(images)
+IMAGES_A = read_images(IMAGES_A_PATH)
+IMAGES_B = read_images(IMAGES_B_PATH)
 
-input_real = tf.placeholder(tf.float32, (None, 64, 64, 3), name='input_real')
-input_noise = tf.placeholder(tf.float32, (None, 100), name='input_noise')
+# Placeholders
+A_image_placeholder = tf.placeholder(tf.float32, (None, IMG_SIZE[0], IMG_SIZE[1], 3), name='input_real')
+B_image_placeholder = tf.placeholder(tf.float32, (None, IMG_SIZE[0], IMG_SIZE[1], 3), name='input_real')
 
-gen_noise = generator(input_noise)
-dis_logits_real = discriminator(input_real)
-dis_logits_fake = discriminator(gen_noise, reuse=True)
+#Network
+generator_A_output_op = generator(A_image_placeholder, "generator_A")
+generator_B_output_op = generator(B_image_placeholder, "generator_B")
+generator_ABA_op = generator(generator(A_image_placeholder, "generator_A", reuse=True), "generator_B", reuse=True)
+generator_BAB_op = generator(generator(B_image_placeholder, "generator_B", reuse=True), "generator_A", reuse=True)
 
-dis_loss_real = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=dis_logits_real, labels=tf.ones_like(dis_logits_real)))
-dis_loss_fake = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=dis_logits_fake, labels=tf.zeros_like(dis_logits_real)))
-gen_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=dis_logits_fake, labels=tf.ones_like(dis_logits_real)))
-dis_loss = dis_loss_real + dis_loss_fake
+discriminator_A_fake_op = discriminator(generator_A_output_op, "discriminator_A")
+discriminator_B_fake_op = discriminator(generator_B_output_op, "discriminator_B")
+discriminator_A_real_op = discriminator(A_image_placeholder, "discriminator_A", reuse=True)
+discriminator_B_real_op = discriminator(B_image_placeholder, "discriminator_B", reuse=True)
 
-# defining optimizers
+#LOSS GENERATOR
+SMOOTH = 0.9
+ALPHA_CYCLE = 1.
+generator_cycle_loss_aba = tf.reduce_mean(tf.abs(generator_ABA_op - A_image_placeholder))
+generator_cycle_loss_bab = tf.reduce_mean(tf.abs(generator_BAB_op - B_image_placeholder))
+generator_A_dis_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=discriminator_A_fake_op, labels=tf.ones_like(discriminator_A_fake_op) * SMOOTH))
+generator_B_dis_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=discriminator_B_fake_op, labels=tf.ones_like(discriminator_B_fake_op) * SMOOTH))
+generator_dis_loss = generator_A_dis_loss + generator_B_dis_loss
+generator_cycle_loss = generator_cycle_loss_aba + generator_cycle_loss_bab
+generator_loss_total = generator_dis_loss + ALPHA_CYCLE * generator_cycle_loss
+
+#LOSS DISCRIMINATOR
+discriminator_A_fake_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=discriminator_A_fake_op, labels=tf.zeros_like(discriminator_A_fake_op)))
+discriminator_B_fake_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=discriminator_B_fake_op, labels=tf.zeros_like(discriminator_B_fake_op)))
+discriminator_A_real_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=discriminator_A_real_op, labels=tf.ones_like(discriminator_A_real_op) * SMOOTH))
+discriminator_B_real_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=discriminator_B_real_op, labels=tf.ones_like(discriminator_B_real_op) * SMOOTH))
+discriminator_loss_total = discriminator_A_fake_loss + discriminator_B_fake_loss + discriminator_A_real_loss + discriminator_B_real_loss
+
+# OPTIMIZERS
 total_vars = tf.trainable_variables()
 dis_vars = [var for var in total_vars if var.name[0] == 'd']
 gen_vars = [var for var in total_vars if var.name[0] == 'g']
-dis_opt = tf.train.AdamOptimizer(learning_rate=0.0002, beta1=0.5).minimize(dis_loss, var_list=dis_vars)
-gen_opt = tf.train.AdamOptimizer(learning_rate=0.0002, beta1=0.5).minimize(gen_loss, var_list=gen_vars)
+update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+with tf.control_dependencies(update_ops):
+    dis_opt = tf.train.AdamOptimizer(learning_rate=0.0002, beta1=0.5).minimize(discriminator_loss_total, var_list=dis_vars)
+    gen_opt = tf.train.AdamOptimizer(learning_rate=0.0002, beta1=0.5).minimize(generator_loss_total, var_list=gen_vars)
 
-batch_size = 128
-iters = len(images)//batch_size
-epochs = 100000
+
+def random_batch(array, batch_size):
+    range = np.arange(len(array))
+    np.random.shuffle(range)
+    indexes = range[:batch_size]
+    return array[indexes]
+
+BATCH_SIZE = 12
+EPOCHS = 100000
 SAVE_PATH = 'C:/Users/Xiaomi/Pictures/test'
 with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
-    for e in range(epochs):
-        for i in range(iters-1):
+    for e in range(EPOCHS):
+        print("Epoch:", e)
+        for i in range(10_000):
 
-            batch_images = images[i*batch_size:(i+1)*batch_size]
-            batch_images = batch_images / 255.
-            batch_noise = np.random.uniform(-1, 1, size=(batch_size, 100))
-
-            discriminator_loss, _ = sess.run([dis_loss, dis_opt], feed_dict={input_real: batch_images, input_noise: batch_noise})
+            #Train Discriminator
+            batch_a = random_batch(IMAGES_A, BATCH_SIZE) / 255.
+            batch_b = random_batch(IMAGES_B, BATCH_SIZE) / 255.
+            discriminator_loss, _ = sess.run([discriminator_loss_total, dis_opt], feed_dict={
+                A_image_placeholder: batch_a,
+                B_image_placeholder: batch_b})
             print("Discriminator Loss:", discriminator_loss)
-            generated_image, generator_loss, _ = sess.run([gen_noise, gen_loss, gen_opt], feed_dict={input_real: batch_images, input_noise: batch_noise})
-            print("Generator Loss:", generator_loss)
+
+            #Train Generator
+            batch_a = random_batch(IMAGES_A, BATCH_SIZE) / 255.
+            batch_b = random_batch(IMAGES_B, BATCH_SIZE) / 255.
+            generated_A_image, generated_B_image, generator_loss, dis_l, cycle_l, _ = sess.run([generator_A_output_op,
+                                                           generator_B_output_op,
+                                                           generator_loss_total,
+                                                           generator_dis_loss,
+                                                           generator_cycle_loss,
+                                                           gen_opt], feed_dict={
+                                                                    A_image_placeholder: batch_a,
+                                                                    B_image_placeholder: batch_b})
+            print("Generator Loss:", generator_loss, "DIS LOSS:", dis_l, "CYCLE LOSS", cycle_l)
 
             if i % 10 == 0:
-                print("Epoch {}/{}...".format(e+1, epochs), "Batch No {}/{}".format(i+1, iters))
-                save_img = (generated_image[0] * 255.).astype(np.uint8)
+                save_img = (generated_A_image[0] * 255.).astype(np.uint8)
                 save_img = cv2.cvtColor(save_img, cv2.COLOR_RGB2BGR)
                 cv2.imwrite(os.path.join(SAVE_PATH, "example" + str(i % 100) + ".jpg"), save_img)
