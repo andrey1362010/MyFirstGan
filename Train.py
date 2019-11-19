@@ -38,14 +38,14 @@ discriminator_B_real_op = discriminator(B_image_placeholder, "discriminator_B", 
 
 #LOSS GENERATOR
 SMOOTH = 0.9
-ALPHA_CYCLE = 1.
+ALPHA_CYCLE = 20.
 generator_cycle_loss_aba = tf.reduce_mean(tf.abs(generator_ABA_op - A_image_placeholder))
 generator_cycle_loss_bab = tf.reduce_mean(tf.abs(generator_BAB_op - B_image_placeholder))
 generator_A_dis_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=discriminator_A_fake_op, labels=tf.ones_like(discriminator_A_fake_op) * SMOOTH))
 generator_B_dis_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=discriminator_B_fake_op, labels=tf.ones_like(discriminator_B_fake_op) * SMOOTH))
 generator_dis_loss = generator_A_dis_loss + generator_B_dis_loss
-generator_cycle_loss = generator_cycle_loss_aba + generator_cycle_loss_bab
-generator_loss_total = generator_dis_loss + ALPHA_CYCLE * generator_cycle_loss
+generator_cycle_loss = ALPHA_CYCLE * (generator_cycle_loss_aba + generator_cycle_loss_bab)
+generator_loss_total = generator_dis_loss + generator_cycle_loss
 
 #LOSS DISCRIMINATOR
 discriminator_A_fake_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=discriminator_A_fake_op, labels=tf.zeros_like(discriminator_A_fake_op)))
