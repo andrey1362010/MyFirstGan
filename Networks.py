@@ -26,13 +26,13 @@ def generator(input, name, training=True, reuse=False):
         x = tf.layers.batch_normalization(x, training=training)
         x = tf.maximum(0., x)
 
-        out_mask = tf.layers.conv2d_transpose(x, 1, 5, 2, padding='same')
-        out_mask = tf.sigmoid(out_mask)
+        #out_mask = tf.layers.conv2d_transpose(x, 1, 5, 2, padding='same')
+        #out_mask = tf.sigmoid(out_mask)
         out_image = tf.layers.conv2d_transpose(x, 3, 5, 2, padding='same')
         out_image = tf.tanh(out_image)
 
-        out = input * (1. - out_mask) + out_image * out_mask
-        return out
+        #out = input * (1. - out_mask) + out_image * out_mask
+        return out_image
 
 
 def discriminator(x, name, reuse=False, alpha=0.2, training=True):

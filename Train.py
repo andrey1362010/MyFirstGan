@@ -4,11 +4,14 @@ import tensorflow as tf
 import numpy as np
 from Networks2 import discriminator, generator
 
-IMG_SIZE = (32, 32)
+IMG_SIZE = (128, 128)
 
-print("Load Data")
-IMAGES_A_PATH = "C:\data\CASIA-WebFace-Aligned/0000439" #MEN
-IMAGES_B_PATH = "C:\data\CASIA-WebFace-Aligned/0000204" #WOMEN
+#for dir in os.listdir("/media/andrey/ssdbig1/data/ms1m_aligned_v2"):
+#    dir = os.path.join("/media/andrey/ssdbig1/data/ms1m_aligned_v2", dir)
+#    print(dir, len(os.listdir(dir)))
+
+IMAGES_A_PATH = "/media/andrey/ssdbig1/data/ms1m_aligned_v2/m.030x8c" #MEN
+IMAGES_B_PATH = "/media/andrey/ssdbig1/data/ms1m_aligned_v2/m.0b6hb7j" #WOMEN
 def read_images(path):
     images = []
     for img_name in os.listdir(path):
@@ -33,12 +36,12 @@ generator_BAB_op = generator(generator(B_image_placeholder, "generator_B", reuse
 
 discriminator_A_fake_op = discriminator(generator_A_output_op, "discriminator_A")
 discriminator_B_fake_op = discriminator(generator_B_output_op, "discriminator_B")
-discriminator_A_real_op = discriminator(A_image_placeholder, "discriminator_A", reuse=True)
-discriminator_B_real_op = discriminator(B_image_placeholder, "discriminator_B", reuse=True)
+discriminator_A_real_op = discriminator(B_image_placeholder, "discriminator_A", reuse=True)
+discriminator_B_real_op = discriminator(A_image_placeholder, "discriminator_B", reuse=True)
 
 #LOSS GENERATOR
 SMOOTH = 0.9
-ALPHA_CYCLE = 20.
+ALPHA_CYCLE = 10.
 generator_cycle_loss_aba = tf.reduce_mean(tf.abs(generator_ABA_op - A_image_placeholder))
 generator_cycle_loss_bab = tf.reduce_mean(tf.abs(generator_BAB_op - B_image_placeholder))
 generator_A_dis_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=discriminator_A_fake_op, labels=tf.ones_like(discriminator_A_fake_op) * SMOOTH))
@@ -70,9 +73,9 @@ def random_batch(array, batch_size):
     indexes = range[:batch_size]
     return array[indexes]
 
-BATCH_SIZE = 12
+BATCH_SIZE = 4
 EPOCHS = 100000
-SAVE_PATH = 'C:/Users/Xiaomi/Pictures/test'
+SAVE_PATH = '/media/andrey/ssdbig1/data/tmp'
 with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
     for e in range(EPOCHS):
@@ -100,7 +103,8 @@ with tf.Session() as sess:
                                                                     B_image_placeholder: batch_b})
             print("Generator Loss:", generator_loss, "DIS LOSS:", dis_l, "CYCLE LOSS", cycle_l)
 
-            if i % 10 == 0:
-                save_img = (generated_A_image[0] * 255.).astype(np.uint8)
+            if i % 1000 == 0:
+                im = np.concatenate([batch_a[0], generated_A_image[0]], axis=1)
+                save_img = (im * 255.).astype(np.uint8)
                 save_img = cv2.cvtColor(save_img, cv2.COLOR_RGB2BGR)
-                cv2.imwrite(os.path.join(SAVE_PATH, "example" + str(i % 100) + ".jpg"), save_img)
+                cv2.imwrite(os.path.join(SAVE_PATH, "example" + str(i % 100000) + ".jpg"), save_img)
