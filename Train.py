@@ -150,13 +150,14 @@ with tf.Session() as sess:
                 feed_dict[A_stages_placeholder[i]] = ba / 127.5 - 1.
                 feed_dict[B_stages_placeholder[i]] = bb / 127.5 - 1.
 
-            generated_A_image, generated_B_image, generator_loss, dis_l, cycle_l, _ = sess.run([generator_A_output_op,
+            generated_A_image, generated_B_image, generator_loss, dis_l, cycle_l, identity_l, _ = sess.run([generator_A_output_op,
                                                            generator_B_output_op,
                                                            generator_loss_total,
                                                            generator_dis_loss,
                                                            generator_cycle_loss,
+                                                           generator_identity_loss,
                                                            gen_opt], feed_dict)
-            print("Generator Loss:", generator_loss, "DIS LOSS:", dis_l, "CYCLE LOSS", cycle_l)
+            print("Generator Loss:", generator_loss, "DIS LOSS:", dis_l, "CYCLE LOSS", cycle_l, "IDENTITY LOSS", identity_l)
 
             if iterate % 10 == 0:
                 im = np.concatenate([batch_a[0], generated_A_image[0]], axis=1)
