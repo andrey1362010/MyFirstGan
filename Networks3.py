@@ -3,6 +3,8 @@ import tensorflow as tf
 
 def generator(input, name, training=True, reuse=False):
     with tf.variable_scope(name, reuse=reuse):
+
+        #DOWN 1
         stage1 = tf.layers.conv2d(input, filters=16, kernel_size=3, strides=1, padding='same')
         stage1 = tf.layers.batch_normalization(stage1, training=training)
         stage1 = tf.nn.leaky_relu(stage1)
@@ -10,6 +12,7 @@ def generator(input, name, training=True, reuse=False):
         stage1 = tf.layers.batch_normalization(stage1, training=training)
         stage1 = tf.nn.leaky_relu(stage1)
 
+        #DOWN 2
         stage2 = tf.layers.conv2d(stage1, filters=32, kernel_size=3, strides=1, padding='same')
         stage2 = tf.layers.batch_normalization(stage2, training=training)
         stage2 = tf.nn.leaky_relu(stage2)
@@ -17,6 +20,7 @@ def generator(input, name, training=True, reuse=False):
         stage2 = tf.layers.batch_normalization(stage2, training=training)
         stage2 = tf.nn.leaky_relu(stage2)
 
+        #DOWN 3
         stage3 = tf.layers.conv2d(stage2, filters=64, kernel_size=3, strides=1, padding='same')
         stage3 = tf.layers.batch_normalization(stage3, training=training)
         stage3 = tf.nn.leaky_relu(stage3)
@@ -24,6 +28,7 @@ def generator(input, name, training=True, reuse=False):
         stage3 = tf.layers.batch_normalization(stage3, training=training)
         stage3 = tf.nn.leaky_relu(stage3)
 
+        #DOWN 4
         stage4 = tf.layers.conv2d(stage3, filters=64, kernel_size=3, strides=1, padding='same')
         stage4 = tf.layers.batch_normalization(stage4, training=training)
         stage4 = tf.nn.leaky_relu(stage4)
@@ -35,27 +40,34 @@ def generator(input, name, training=True, reuse=False):
         stage4_up = tf.layers.batch_normalization(stage4_up, training=training)
         stage4_up = tf.nn.leaky_relu(stage4_up)
 
+        #UP4
         stage3_up = tf.layers.conv2d_transpose(stage4_up, filters=64, kernel_size=3, strides=2, padding='same')
         stage3_up = tf.layers.batch_normalization(stage3_up, training=training)
         stage3_up = tf.nn.leaky_relu(stage3_up)
+        stage3_up = tf.concat([stage3_up, stage3], axis=-1)
         stage3_up = tf.layers.conv2d(stage3_up, filters=64, kernel_size=3, strides=1, padding='same')
         stage3_up = tf.layers.batch_normalization(stage3_up, training=training)
         stage3_up = tf.nn.leaky_relu(stage3_up)
 
+        #UP3
         stage2_up = tf.layers.conv2d_transpose(stage3_up, filters=64, kernel_size=3, strides=2, padding='same')
         stage2_up = tf.layers.batch_normalization(stage2_up, training=training)
         stage2_up = tf.nn.leaky_relu(stage2_up)
+        stage2_up = tf.concat([stage2_up, stage2], axis=-1)
         stage2_up = tf.layers.conv2d(stage2_up, filters=64, kernel_size=3, strides=1, padding='same')
         stage2_up = tf.layers.batch_normalization(stage2_up, training=training)
         stage2_up = tf.nn.leaky_relu(stage2_up)
 
+        #UP2
         stage1_up = tf.layers.conv2d_transpose(stage2_up, filters=32, kernel_size=3, strides=2, padding='same')
         stage1_up = tf.layers.batch_normalization(stage1_up, training=training)
         stage1_up = tf.nn.leaky_relu(stage1_up)
+        stage1_up = tf.concat([stage1_up, stage1], axis=-1)
         stage1_up = tf.layers.conv2d(stage1_up, filters=32, kernel_size=3, strides=1, padding='same')
         stage1_up = tf.layers.batch_normalization(stage1_up, training=training)
         stage1_up = tf.nn.leaky_relu(stage1_up)
 
+        #UP1
         result = tf.layers.conv2d_transpose(stage1_up, filters=16, kernel_size=3, strides=2, padding='same')
         result = tf.layers.batch_normalization(result, training=training)
         result = tf.nn.leaky_relu(result)

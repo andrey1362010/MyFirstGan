@@ -9,9 +9,9 @@ from Networks3 import discriminator, generator
 import pandas as pd
 
 IMG_SIZE = (128, 128)
-CELEBA_LANDMARKS_PATH = "C:\data\celeba/list_landmarks_align_celeba.csv"
-CELEBA_ATTRIBUTES_PATH = "C:\data\celeba/list_attr_celeba.csv"
-CELEBA_IMAGES_PATH = "C:\data\celeba\img_align_celeba"
+CELEBA_LANDMARKS_PATH = "/media/andrey/ssdbig1/data/celeba/list_landmarks_align_celeba.csv"
+CELEBA_ATTRIBUTES_PATH = "/media/andrey/ssdbig1/data/celeba/list_attr_celeba.csv"
+CELEBA_IMAGES_PATH = "/media/andrey/ssdbig1/data/celeba/img_align_celeba"
 
 landmarks = pd.read_csv(CELEBA_LANDMARKS_PATH)
 attributes = pd.read_csv(CELEBA_ATTRIBUTES_PATH)
@@ -19,7 +19,8 @@ df = pd.concat([landmarks.set_index('image_id'), attributes.set_index('image_id'
 df["path"] = df["image_id"].apply(lambda x: os.path.join(CELEBA_IMAGES_PATH, x))
 male_df = df[df["Male"] == 1]
 female_df = df[df["Male"] == -1]
-
+print(len(male_df))
+print(len(female_df))
 def get_landmarks(df):
     return df[[
         "nose_x", "nose_y",
@@ -113,7 +114,7 @@ def random_batch(array, landmarks, batch_size):
 
 BATCH_SIZE = 4
 EPOCHS = 100000
-SAVE_PATH ='C:/Users/Xiaomi/Pictures/test'
+SAVE_PATH ='/home/andrey/Pictures/test'
 with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
     for e in range(EPOCHS):
@@ -159,7 +160,7 @@ with tf.Session() as sess:
                                                            gen_opt], feed_dict)
             print("Generator Loss:", generator_loss, "DIS LOSS:", dis_l, "CYCLE LOSS", cycle_l, "IDENTITY LOSS", identity_l)
 
-            if iterate % 10 == 0:
+            if iterate % 50 == 0:
                 im = np.concatenate([batch_a[0], generated_A_image[0]], axis=1)
                 save_img = ((im + 1.) * 127.5).astype(np.uint8)
                 save_img = cv2.cvtColor(save_img, cv2.COLOR_RGB2BGR)
