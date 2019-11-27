@@ -9,9 +9,12 @@ from Networks3 import discriminator, generator
 import pandas as pd
 
 IMG_SIZE = (128, 128)
-CELEBA_LANDMARKS_PATH = "/media/andrey/ssdbig1/data/celeba/list_landmarks_align_celeba.csv"
-CELEBA_ATTRIBUTES_PATH = "/media/andrey/ssdbig1/data/celeba/list_attr_celeba.csv"
-CELEBA_IMAGES_PATH = "/media/andrey/ssdbig1/data/celeba/img_align_celeba"
+#CELEBA_LANDMARKS_PATH = "/media/andrey/ssdbig1/data/celeba/list_landmarks_align_celeba.csv"
+#CELEBA_ATTRIBUTES_PATH = "/media/andrey/ssdbig1/data/celeba/list_attr_celeba.csv"
+#CELEBA_IMAGES_PATH = "/media/andrey/ssdbig1/data/celeba/img_align_celeba"
+CELEBA_LANDMARKS_PATH = "C:/data\celeba/list_landmarks_align_celeba.csv"
+CELEBA_ATTRIBUTES_PATH = "C:/data\celeba/list_attr_celeba.csv"
+CELEBA_IMAGES_PATH = "C:/data\celeba/img_align_celeba"
 
 landmarks = pd.read_csv(CELEBA_LANDMARKS_PATH)
 attributes = pd.read_csv(CELEBA_ATTRIBUTES_PATH)
@@ -42,13 +45,15 @@ A_stages_placeholder = [
     tf.placeholder(tf.float32, (None, IMG_SIZE[0]/2, IMG_SIZE[1]/2, 3), name='stage_2_A'),
     tf.placeholder(tf.float32, (None, IMG_SIZE[0]/4, IMG_SIZE[1]/4, 3), name='stage_4_A'),
     tf.placeholder(tf.float32, (None, IMG_SIZE[0]/8, IMG_SIZE[1]/8, 3), name='stage_8_A'),
-    tf.placeholder(tf.float32, (None, IMG_SIZE[0]/16, IMG_SIZE[1]/16, 3), name='stage_16_A')
+    tf.placeholder(tf.float32, (None, IMG_SIZE[0]/16, IMG_SIZE[1]/16, 3), name='stage_16_A'),
+    tf.placeholder(tf.float32, (None, IMG_SIZE[0]/32, IMG_SIZE[1]/32, 3), name='stage_32_A'),
 ]
 B_stages_placeholder = [
     tf.placeholder(tf.float32, (None, IMG_SIZE[0]/2, IMG_SIZE[1]/2, 3), name='stage_2_B'),
     tf.placeholder(tf.float32, (None, IMG_SIZE[0]/4, IMG_SIZE[1]/4, 3), name='stage_4_B'),
     tf.placeholder(tf.float32, (None, IMG_SIZE[0]/8, IMG_SIZE[1]/8, 3), name='stage_8_B'),
-    tf.placeholder(tf.float32, (None, IMG_SIZE[0]/16, IMG_SIZE[1]/16, 3), name='stage_16_B')
+    tf.placeholder(tf.float32, (None, IMG_SIZE[0]/16, IMG_SIZE[1]/16, 3), name='stage_16_B'),
+    tf.placeholder(tf.float32, (None, IMG_SIZE[0]/32, IMG_SIZE[1]/32, 3), name='stage_16_B'),
 ]
 
 #Network
@@ -114,7 +119,8 @@ def random_batch(array, landmarks, batch_size):
 
 BATCH_SIZE = 4
 EPOCHS = 100000
-SAVE_PATH ='/home/andrey/Pictures/test'
+#SAVE_PATH ='/home/andrey/Pictures/test'
+SAVE_PATH = "C:/Users\Xiaomi\Pictures/test"
 with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
     for e in range(EPOCHS):
@@ -129,7 +135,7 @@ with tf.Session() as sess:
             feed_dict = {
                 A_image_placeholder: batch_a,
                 B_image_placeholder: batch_b}
-            for i in range(4):
+            for i in range(5):
                 size = int(128 / 2**(i+1))
                 ba = np.array([cv2.resize(img, (size, size)) for img in batch_a])
                 bb = np.array([cv2.resize(img, (size, size)) for img in batch_b])
@@ -144,7 +150,7 @@ with tf.Session() as sess:
             feed_dict = {
                 A_image_placeholder: batch_a,
                 B_image_placeholder: batch_b}
-            for i in range(4):
+            for i in range(5):
                 size = int(128 / 2**(i+1))
                 ba = np.array([cv2.resize(img, (size, size)) for img in batch_a])
                 bb = np.array([cv2.resize(img, (size, size)) for img in batch_b])
