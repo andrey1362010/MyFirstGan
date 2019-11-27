@@ -38,6 +38,29 @@ IMAGES_PATHS_B = np.array(female_df["path"].tolist())
 LANDMARKS_A = get_landmarks(male_df)
 LANDMARKS_B = get_landmarks(female_df)
 
+class DataLoader:
+    def __init__(self, paths, landmarks):
+        self.paths = paths
+        self.landmarks = landmarks
+        self.counter = 0
+
+    def get_batch(self, batch_size):
+        data = np.zeros((batch_size, IMG_SIZE[0], IMG_SIZE[1], 3))
+        for b in range(batch_size):
+            path = self.paths[self.counter]
+            lnd = self.landmarks[self.counter]
+            img = cv2.imread(path)
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            img = preprocess_face(img, lnd, IMG_SIZE)
+            data[b] = img
+            self.counter += 1
+            if self.counter >= len(self.paths):
+                self.counter = 0
+        return data
+
+A_Data_Loader = DataLoader(IMAGES_PATHS_A, LANDMARKS_A)
+B_Data_Loader = DataLoader(IMAGES_PATHS_B, LANDMARKS_B)
+
 # Placeholders
 A_image_placeholder = tf.placeholder(tf.float32, (None, IMG_SIZE[0], IMG_SIZE[1], 3), name='input_real_A')
 B_image_placeholder = tf.placeholder(tf.float32, (None, IMG_SIZE[0], IMG_SIZE[1], 3), name='input_real_B')
@@ -77,13 +100,14 @@ discriminator_B_real_op = discriminator(A_image_placeholder, A_stages_placeholde
 #LOSS GENERATOR
 SMOOTH = 0.9
 ALPHA_CYCLE = 10.
+ALPHA_IDENTITY = 10.
 generator_cycle_loss_aba = tf.reduce_mean(tf.abs(generator_ABA_op - A_image_placeholder))
 generator_cycle_loss_bab = tf.reduce_mean(tf.abs(generator_BAB_op - B_image_placeholder))
 generator_A_dis_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=discriminator_A_fake_op, labels=tf.ones_like(discriminator_A_fake_op) * SMOOTH))
 generator_B_dis_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=discriminator_B_fake_op, labels=tf.ones_like(discriminator_B_fake_op) * SMOOTH))
 generator_dis_loss = generator_A_dis_loss + generator_B_dis_loss
 generator_cycle_loss = ALPHA_CYCLE * (generator_cycle_loss_aba + generator_cycle_loss_bab)
-generator_identity_loss = tf.reduce_mean(tf.abs(generator_A_identity_op - B_image_placeholder)) + tf.reduce_mean(tf.abs(generator_B_identity_op - A_image_placeholder))
+generator_identity_loss = ALPHA_IDENTITY * tf.reduce_mean(tf.abs(generator_A_identity_op - B_image_placeholder)) + tf.reduce_mean(tf.abs(generator_B_identity_op - A_image_placeholder))
 generator_loss_total = generator_dis_loss + generator_cycle_loss + generator_identity_loss
 
 #LOSS DISCRIMINATOR
@@ -102,21 +126,6 @@ with tf.control_dependencies(update_ops):
     dis_opt = tf.train.AdamOptimizer(learning_rate=0.0002, beta1=0.5).minimize(discriminator_loss_total, var_list=dis_vars)
     gen_opt = tf.train.AdamOptimizer(learning_rate=0.0002, beta1=0.5).minimize(generator_loss_total, var_list=gen_vars)
 
-
-def random_batch(array, landmarks, batch_size):
-    range = np.arange(len(array))
-    np.random.shuffle(range)
-    indexes = range[:batch_size]
-    paths = array[indexes]
-    lnd = landmarks[indexes]
-    data = []
-    for i, l in zip(paths, lnd):
-        img = cv2.imread(i)
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        img = preprocess_face(img, l, IMG_SIZE)
-        data.append(img)
-    return np.array(data)
-
 BATCH_SIZE = 4
 EPOCHS = 100000
 #SAVE_PATH ='/home/andrey/Pictures/test'
@@ -130,8 +139,8 @@ with tf.Session() as sess:
             #ax.imshow(random_batch(IMAGES_PATHS_B, LANDMARKS_B, BATCH_SIZE)[0])
             #plt.show()
             #Train Discriminator
-            batch_a = random_batch(IMAGES_PATHS_A, LANDMARKS_A, BATCH_SIZE) / 127.5 - 1.
-            batch_b = random_batch(IMAGES_PATHS_B, LANDMARKS_B, BATCH_SIZE) / 127.5 - 1.
+            batch_a = A_Data_Loader.get_batch(BATCH_SIZE) / 127.5 - 1.
+            batch_b = B_Data_Loader.get_batch(BATCH_SIZE) / 127.5 - 1.
             feed_dict = {
                 A_image_placeholder: batch_a,
                 B_image_placeholder: batch_b}
@@ -145,8 +154,8 @@ with tf.Session() as sess:
             print("Discriminator Loss:", discriminator_loss)
 
             #Train Generator
-            batch_a = random_batch(IMAGES_PATHS_A, LANDMARKS_A, BATCH_SIZE) / 127.5 - 1.
-            batch_b = random_batch(IMAGES_PATHS_B, LANDMARKS_B,  BATCH_SIZE) / 127.5 - 1.
+            batch_a = A_Data_Loader.get_batch(BATCH_SIZE) / 127.5 - 1.
+            batch_b = B_Data_Loader.get_batch(BATCH_SIZE) / 127.5 - 1.
             feed_dict = {
                 A_image_placeholder: batch_a,
                 B_image_placeholder: batch_b}
